@@ -1,0 +1,2 @@
+# swiss-vitale-lager
+Lagerverwaltungssystem
