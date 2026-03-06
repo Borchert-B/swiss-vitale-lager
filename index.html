@@ -346,6 +346,16 @@ html,body{height:100%;background:var(--bg);font-family:var(--ff);color:var(--tx)
         <button class="btn bo" onclick="oCloud()">&#x2699;&#xFE0F; Konfigurieren</button>
       </div>
     </div>
+
+    <div class="scr" id="sc-art">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="sec" style="margin:0">Artikelstamm</div>
+        <button class="btn bp bs" onclick="oArtNew()">+ Neu</button>
+      </div>
+      <div class="sw"><span class="si">&#x1F50D;</span><input class="fi" id="art-s" placeholder="Artikel suchen&#x2026;" oninput="rArtList()"></div>
+      <div style="font-size:10px;color:var(--mu);font-family:var(--mo);margin-bottom:10px" id="art-cnt"></div>
+      <div id="art-list"></div>
+    </div>
   </div>
   <nav class="nav">
     <button class="nb on" id="nb-dash" onclick="showS('dash')"><span class="ni">&#x1F3E0;</span><span>Dashboard</span></button>
@@ -353,6 +363,7 @@ html,body{height:100%;background:var(--bg);font-family:var(--ff);color:var(--tx)
     <button class="nb" id="nb-wa" onclick="showS('wa')"><span class="ni">&#x1F4E4;</span><span>Ausgang</span></button>
     <button class="nb" id="nb-best" onclick="showS('best')"><span class="ni">&#x1F4E6;</span><span>Bestand</span></button>
     <button class="nb" id="nb-konf" onclick="showS('konf')"><span class="ni">&#x2697;&#xFE0F;</span><span>Konf.</span></button>
+    <button class="nb" id="nb-art" onclick="showS('art')"><span class="ni">&#x1F4DD;</span><span>Artikel</span></button>
     <button class="nb" id="nb-mehr" onclick="showS('mehr')"><span class="ni">&#x2630;</span><span>Mehr</span></button>
   </nav>
 </div>
@@ -395,6 +406,41 @@ html,body{height:100%;background:var(--bg);font-family:var(--ff);color:var(--tx)
   <div id="cfg-r" style="font-size:12px;font-family:var(--mo);color:var(--mu);margin-top:7px"></div>
 </div></div>
 
+
+<div class="mb" id="m-art" onclick="cM('m-art')"><div class="mof" onclick="event.stopPropagation()">
+  <div class="mh"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div class="mt" style="margin:0" id="art-mt">Artikel</div>
+    <button class="btn bd bs" id="art-del-btn" onclick="delArt()" style="display:none">&#x1F5D1; Löschen</button>
+  </div>
+  <div class="fg"><label class="fl">Artikel-Nr.</label><input class="fi" id="art-id" placeholder="SV20001" style="font-family:var(--mo)"></div>
+  <div class="fg"><label class="fl">Bezeichnung</label><input class="fi" id="art-nm" placeholder="VITAMIN C 500MG"></div>
+  <div class="fg"><label class="fl">Kategorie</label>
+    <select class="fi fsel" id="art-kt">
+      <option>Swiss Vitale</option>
+      <option>Private Label</option>
+      <option>Rohstoff</option>
+      <option>Verpackung</option>
+      <option>Sonstige</option>
+    </select>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <div class="fg"><label class="fl">Einheit</label>
+      <select class="fi fsel" id="art-eu">
+        <option>Stk</option><option>L</option><option>kg</option><option>ml</option><option>g</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Mindestbestand</label><input class="fi" id="art-mn" type="number" placeholder="5" min="0"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <div class="fg"><label class="fl">Einkaufspreis CHF</label><input class="fi" id="art-pr" type="number" placeholder="0.00" min="0" step="0.01"></div>
+    <div class="fg"><label class="fl">MHD-Warnfrist (Tage)</label><input class="fi" id="art-mw" type="number" placeholder="90" min="0"></div>
+  </div>
+  <div class="fg"><label class="fl">Lieferant</label><input class="fi" id="art-lf" placeholder="Lieferantenname"></div>
+  <button class="btn bp" onclick="saveArt()" style="margin-top:4px">&#x1F4BE; Speichern</button>
+  <div class="lerr" id="art-err"></div>
+</div></div>
+
 <div id="sv"><video id="svid" autoplay playsinline muted></video><div class="so"><div class="sf"></div></div><button class="sx" onclick="stopScan()">&#x2715;</button><div style="position:absolute;bottom:90px;color:rgba(255,255,255,.85);font-size:13px">Barcode in den Rahmen halten</div></div>
 <div id="toast"></div>
 
@@ -405,39 +451,7 @@ const K={DB:'sv4_db',CFG:'sv4_cfg',AUTH:'sv4_auth',USERS:'sv4_usr',INV:'sv4_inv'
 let db={we:[],wa:[],konf:[],art:[]},cu=null;
 let weAid=null,waAid=null,kfId=null,scanTgt=null,scanStr=null,rstU=null,apArr=[],kbArr=[];
 
-const DA=[
-  {id:'SV10001',name:'VITAMIN C 500MG',kat:'Vitamine',einheit:'Stk',min:50},
-  {id:'SV10002',name:'VITAMIN D3 2000 IU',kat:'Vitamine',einheit:'Stk',min:50},
-  {id:'SV10003',name:'VITAMIN B KOMPLEX',kat:'Vitamine',einheit:'Stk',min:30},
-  {id:'SV10006',name:'FOLSÄURE 400MCG',kat:'Vitamine',einheit:'Stk',min:30},
-  {id:'SV10007',name:'BIOTIN 5000MCG',kat:'Vitamine',einheit:'Stk',min:20},
-  {id:'SV10011',name:'ZINK 25MG',kat:'Mineralien',einheit:'Stk',min:30},
-  {id:'SV10012',name:'MAGNESIUM 300MG',kat:'Mineralien',einheit:'Stk',min:30},
-  {id:'SV10021',name:'OMEGA-3 1000MG',kat:'Fettsäuren',einheit:'Stk',min:30},
-  {id:'SV10025',name:'COENZYM Q10 100MG',kat:'Spezial',einheit:'Stk',min:20},
-  {id:'SV10026',name:'COENZYM Q10/VIT E 10ML',kat:'Tropfen',einheit:'Stk',min:20},
-  {id:'SV10031',name:'ASHWAGANDHA 600MG',kat:'Adaptogene',einheit:'Stk',min:20},
-  {id:'SV10039',name:'PROBIOTIKA 10MRD',kat:'Darm',einheit:'Stk',min:30},
-  {id:'SV10051',name:'WEIHRAUCH BULK 1L',kat:'Bulk',einheit:'L',min:2},
-  {id:'SV10052',name:'CBD BULK 500MG/ML',kat:'Bulk',einheit:'L',min:2},
-  {id:'SV10053',name:'CURCUMIN BULK',kat:'Bulk',einheit:'kg',min:2},
-  {id:'SV10054',name:'MELATONIN BULK',kat:'Bulk',einheit:'kg',min:1},
-  {id:'SV10062',name:'WEIHRAUCH 10ML',kat:'Tropfen',einheit:'Stk',min:20},
-  {id:'SV10063',name:'MELATONIN 10ML',kat:'Tropfen',einheit:'Stk',min:20},
-  {id:'SV10064',name:'CBD 2.5% 10ML',kat:'Tropfen',einheit:'Stk',min:20},
-  {id:'SV10065',name:'CBD 5% 10ML',kat:'Tropfen',einheit:'Stk',min:20},
-  {id:'SV10066',name:'CBD 10% 10ML',kat:'Tropfen',einheit:'Stk',min:20},
-  {id:'SV10067',name:'VITAMIN D3 10ML',kat:'Tropfen',einheit:'Stk',min:20},
-  {id:'SV10071',name:'VITAMIN B12 0.03% 10ML',kat:'Tropfen',einheit:'Stk',min:20},
-  {id:'SV20001',name:'MIX CBN-MELATONIN 10ML',kat:'Mischungen',einheit:'Stk',min:20},
-  {id:'SV20003',name:'CBD FS 2.5% 30ML',kat:'CBD',einheit:'Stk',min:20},
-  {id:'SV20004',name:'CBD FS 5% 30ML',kat:'CBD',einheit:'Stk',min:20},
-  {id:'SV20005',name:'CBD FS 10% 30ML',kat:'CBD',einheit:'Stk',min:20},
-  {id:'SV20008',name:'SCHLAF FORMEL 30ML',kat:'Formeln',einheit:'Stk',min:20},
-  {id:'SV30001',name:'VERPACKUNG 30ML',kat:'Material',einheit:'Stk',min:100},
-  {id:'SV30002',name:'VERPACKUNG 10ML',kat:'Material',einheit:'Stk',min:100},
-  {id:'SV30003',name:'ETIKETTEN STANDARD',kat:'Material',einheit:'Stk',min:200},
-];
+const DA=[{"id": "SV20035", "name": "ARTEMIC RESCUE SPRAY 5ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20041", "name": "ASHWAGANDHA 2.5% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.95, "min": 5, "mhdWarn": 90, "lief": "Lipoactive"}, {"id": "SV20039", "name": "ASHWAGANDHA 2.5% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 65.0, "min": 5, "mhdWarn": 180, "lief": "Lipoactive"}, {"id": "SV20026", "name": "ATOMIC MIX C-D-E 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20019", "name": "ATOMIC SPERMIDIN 24 - NMN 25 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "BIOV002", "name": "BOOSTICARE Rejuvenate Spermidin 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "mhdWarn": 90, "lief": "—"}, {"id": "10300", "name": "C-ENERGY VITALE", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 30.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "10211-D", "name": "CARDIO VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20002", "name": "CBD FS 2.5% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20003", "name": "CBD FS 2.5% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 1.5, "min": 5, "mhdWarn": 90, "lief": "Liquid Universum GmbH"}, {"id": "SV10006", "name": "CBD FS 2.5% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 110.0, "min": 5, "mhdWarn": 180, "lief": "Swiss PharmaCan AG"}, {"id": "SV10016", "name": "CBD ISO 5% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 2.5, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10020", "name": "CBN FS 1.5% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 1.5, "min": 5, "mhdWarn": 90, "lief": "—"}, {"id": "SV10023", "name": "CBN ISO 1% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 2.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20017", "name": "COENZYM Q10/VITAMIN BULK", "kat": "Rohstoff", "einheit": "L", "preis": 150.0, "min": 5, "mhdWarn": 180, "lief": "Swiss PharmaCan AG"}, {"id": "SV10026", "name": "COENZYM Q10/VITAMIN E 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10027", "name": "COENZYM Q10/VITAMIN E 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 6.5, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20032", "name": "COGNITIVE CLARITY 15ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "mhdWarn": 90, "lief": "Nueheights Ltd."}, {"id": "SV20006", "name": "CURCUMA 2% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 100.0, "min": 5, "mhdWarn": 180, "lief": "—"}, {"id": "SV10031", "name": "CURCUMA 6% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10034", "name": "CURCUMA 6% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 15.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10030", "name": "CURCUMA 6% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 100.0, "min": 5, "mhdWarn": 180, "lief": "Swiss PharmaCan AG"}, {"id": "10217", "name": "CURCUMA VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "OV0002", "name": "DROPPER BOTTLE ORION 10-63ml DIN18", "kat": "Verpackung", "einheit": "Stk", "preis": 0.474, "min": 5, "mhdWarn": 90, "lief": "Miron Violetglas B.V"}, {"id": "OV0001", "name": "DROPPER BOTTLE ORION 30ml DIN18", "kat": "Verpackung", "einheit": "Stk", "preis": 0.5919, "min": 5, "mhdWarn": 90, "lief": "Miron Violetglas B.V"}, {"id": "SV10036", "name": "FRANKINCENSE 2.5% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10038", "name": "FRANKINCENSE 2.5% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10039", "name": "FRANKINCENSE 2.5% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 200.0, "min": 5, "mhdWarn": 180, "lief": "Swiss PharmaCan AG"}, {"id": "SV10041", "name": "GINGER 2% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10042", "name": "GINGER 2% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20029", "name": "GINGER 2% BULK", "kat": "Rohstoff", "einheit": "Stk", "preis": 50.0, "min": 5, "mhdWarn": 180, "lief": "Swiss PharmaCan AG"}, {"id": "SV20036", "name": "GLUTATHION 100 VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20025", "name": "GLUTATHIONE 25 BULK", "kat": "Rohstoff", "einheit": "L", "preis": 66.0, "min": 5, "mhdWarn": 180, "lief": "Lipoactive"}, {"id": "10219", "name": "HANF VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "10210", "name": "IMMUN VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "10228", "name": "INGWER VITALE, 30ml", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 1.5, "min": 5, "mhdWarn": 90, "lief": "—"}, {"id": "SV10089", "name": "MIX C-D-E 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10090", "name": "MIX C-D-E 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 6.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20027", "name": "MIX C-D-E BULK", "kat": "Rohstoff", "einheit": "Stk", "preis": 204.0, "min": 5, "mhdWarn": 180, "lief": "miVital AG"}, {"id": "SV10057", "name": "MIX C-O-C 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10055", "name": "MIX C-O-C 20ML", "kat": "Private Label", "einheit": "Stk", "preis": 6.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10056", "name": "MIX C-O-C 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 6.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10040", "name": "MIX C-O-C BULK", "kat": "Rohstoff", "einheit": "L", "preis": 65.0, "min": 5, "mhdWarn": 180, "lief": "Swiss PharmaCan AG"}, {"id": "SV10046", "name": "MIX CBD FS 1%/CURCUMA 3% 30ml", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10047", "name": "MIX CBD ISO 1%/CURCUMA 3% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10048", "name": "Mix CBD ISO 1%/CURCUMA 3% 30ml", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20001", "name": "MIX CBN - MELATONIN 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 1.2, "min": 5, "mhdWarn": 90, "lief": "Liquid Universum GmbH"}, {"id": "SV20020", "name": "MIX CBN - MELATONIN 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.5, "min": 5, "mhdWarn": 90, "lief": "—"}, {"id": "SV10052", "name": "MIX CBN - MELATONIN BULK", "kat": "Rohstoff", "einheit": "L", "preis": 200.0, "min": 5, "mhdWarn": 180, "lief": "Swiss PharmaCan AG"}, {"id": "10226", "name": "MIX CURCUMA/FRANKINCENSE 15ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 3.5, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10060", "name": "MIX FRANKINCENSE/CURCUMA 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10061", "name": "MIX FRANKINCENSE/CURCUMA 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 6.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10062", "name": "MIX FRANKINCENSE/CURCUMA BULK", "kat": "Rohstoff", "einheit": "Stk", "preis": 150.0, "min": 5, "mhdWarn": 180, "lief": "Swiss PharmaCan AG"}, {"id": "SV10045", "name": "MIX Q10-OMEGA-B-PLUS", "kat": "Private Label", "einheit": "Stk", "preis": 6.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "10223", "name": "MOBIL VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20022", "name": "MULTIVITAMIN 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.0, "min": 5, "mhdWarn": 90, "lief": "Nueheights Ltd."}, {"id": "SV20023", "name": "MULTIVITAMIN 15ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "mhdWarn": 90, "lief": "Nueheights Ltd."}, {"id": "SV20014", "name": "NMN 5% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.75, "min": 5, "mhdWarn": 90, "lief": "Nueheights Ltd."}, {"id": "SV20015", "name": "NMN 5% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 5.25, "min": 5, "mhdWarn": 90, "lief": "Nueheights Ltd."}, {"id": "SV20016", "name": "NMN 5% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 75.0, "min": 5, "mhdWarn": 180, "lief": "Nueheights Ltd."}, {"id": "SV20040", "name": "NMN SPERMIDINE BULK", "kat": "Rohstoff", "einheit": "L", "preis": 65.0, "min": 5, "mhdWarn": 180, "lief": "Lipoactive"}, {"id": "10209", "name": "OMEGA 3 VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10065", "name": "OMEGA 369 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "10227", "name": "OMEGA 369 15ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 3.5, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10066", "name": "OMEGA 369 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 5.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10067", "name": "OMEGA 369 BULK", "kat": "Rohstoff", "einheit": "Stk", "preis": 150.0, "min": 5, "mhdWarn": 180, "lief": "Swiss PharmaCan AG"}, {"id": "OV0004", "name": "PIPETTE ORION 10-63ML", "kat": "Verpackung", "einheit": "Stk", "preis": 0.3977, "min": 5, "mhdWarn": 90, "lief": "Miron Violetglas B.V"}, {"id": "OV0003", "name": "PIPETTE ORION 30ML", "kat": "Verpackung", "einheit": "Stk", "preis": 0.4003, "min": 5, "mhdWarn": 90, "lief": "Miron Violetglas B.V"}, {"id": "SV10085", "name": "PROPOLIS 1.5% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10086", "name": "PROPOLIS 1.5% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20028", "name": "PROPOLIS 1.5% BULK", "kat": "Rohstoff", "einheit": "Stk", "preis": 50.0, "min": 5, "mhdWarn": 180, "lief": "Swiss PharmaCan AG"}, {"id": "10220", "name": "PROPOLIS VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "10213", "name": "Q10 VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 1, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "10221", "name": "SCHLAF VITALE 10ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 4.0, "min": 5, "mhdWarn": 90, "lief": "—"}, {"id": "SV20031", "name": "SKIN FORMULA 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "mhdWarn": 90, "lief": "Nueheights Ltd."}, {"id": "SV20024", "name": "SKIN FORMULA 15ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "mhdWarn": 90, "lief": "Nueheights Ltd."}, {"id": "10222", "name": "SPERMIDIN VITALE 10ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 1.2, "min": 5, "mhdWarn": 90, "lief": "—"}, {"id": "SV20007", "name": "SPERMIDINE COMPLEX 1,2% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 2.55, "min": 5, "mhdWarn": 90, "lief": "Liquid Universum GmbH"}, {"id": "SV20004", "name": "SPERMIDINE COMPLEX 1,2% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 2.85, "min": 5, "mhdWarn": 90, "lief": "Liquid Universum GmbH"}, {"id": "SV10088", "name": "SPERMIDINE COMPLEX 1.2% BULK", "kat": "Rohstoff", "einheit": "Stk", "preis": 115.0, "min": 5, "mhdWarn": 180, "lief": "Swiss PharmaCan AG"}, {"id": "SV20021", "name": "SPERMIDINE COMPLEX 2.4% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.5, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20034", "name": "SPERMIDINE COMPLEX 2.4% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 200.0, "min": 5, "mhdWarn": 180, "lief": "Swiss PharmaCan AG"}, {"id": "SV20011", "name": "SPERMIDINE PLUS VITAMIN  B9 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.5, "min": 5, "mhdWarn": 90, "lief": "—"}, {"id": "SV20012", "name": "SPERMIDINE PLUS VITAMIN B9 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.5, "min": 5, "mhdWarn": 90, "lief": "—"}, {"id": "SV20013", "name": "SPERMIDINE PLUS VITAMIN B9 BULK", "kat": "Rohstoff", "einheit": "L", "preis": 150.0, "min": 5, "mhdWarn": 180, "lief": "—"}, {"id": "10230", "name": "TELOMER VITALE 10ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 1.2, "min": 5, "mhdWarn": 90, "lief": "—"}, {"id": "SV10069", "name": "Vitamin B-Total 10ml", "kat": "Private Label", "einheit": "Stk", "preis": 2.5, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10017", "name": "VITAMIN B-TOTAL 30ml", "kat": "Private Label", "einheit": "Stk", "preis": 2.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "10216", "name": "VITAMIN B+ VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10071", "name": "VITAMIN B12 0.03% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 2.5, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10073", "name": "VITAMIN B12 0.03% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 1.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20018", "name": "VITAMIN B12 0.03% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 150.0, "min": 5, "mhdWarn": 180, "lief": "Swiss PharmaCan AG"}, {"id": "SV10075", "name": "VITAMIN C 10% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10208", "name": "VITAMIN C 10% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 9.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20030", "name": "VITAMIN C 10% BULK", "kat": "Rohstoff", "einheit": "Stk", "preis": 35.0, "min": 5, "mhdWarn": 180, "lief": "Swiss PharmaCan AG"}, {"id": "10224", "name": "VITAMIN C 3% 15ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 2.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20009", "name": "VITAMIN C 3% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 3.0, "min": 5, "mhdWarn": 90, "lief": "—"}, {"id": "SV20005", "name": "VITAMIN C 3% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 100.0, "min": 5, "mhdWarn": 180, "lief": "—"}, {"id": "10215", "name": "VITAMIN C VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20010", "name": "VITAMIN D3 + K2 VEGAN 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 2.0, "min": 5, "mhdWarn": 90, "lief": "—"}, {"id": "SV20033", "name": "VITAMIN D3 + K2 VEGAN 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 5.0, "min": 5, "mhdWarn": 90, "lief": "—"}, {"id": "SV10091", "name": "VITAMIN D3 0,02% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 1.5, "min": 5, "mhdWarn": 90, "lief": "NutriC Products Ltd."}, {"id": "SV10079", "name": "VITAMIN D3 0,06% 10ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10092", "name": "VITAMIN D3 0,06% 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "miVital AG"}, {"id": "SV20037", "name": "VITAMIN D3 0,06% BULK", "kat": "Rohstoff", "einheit": "L", "preis": 150.0, "min": 5, "mhdWarn": 180, "lief": "miVital AG"}, {"id": "10225", "name": "VITAMIN D3 0.01% VEGAN 15ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 2.5, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV10010", "name": "VITAMIN D3 0.01% VEGAN 30ML", "kat": "Private Label", "einheit": "Stk", "preis": 4.5, "min": 5, "mhdWarn": 90, "lief": "—"}, {"id": "SV10001", "name": "VITAMIN D3 0.01% VEGAN BULK", "kat": "Rohstoff", "einheit": "L", "preis": 50.0, "min": 5, "mhdWarn": 180, "lief": "Nueheights Ltd."}, {"id": "10214", "name": "VITAMIN D3 VITALE 10ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 7.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}, {"id": "SV20038", "name": "VITAMIN D3/K2 vegan Bulk", "kat": "Rohstoff", "einheit": "Stk", "preis": 16.0, "min": 5, "mhdWarn": 180, "lief": "Nueheights Ltd."}, {"id": "10218", "name": "WEIHRAUCH VITALE 30ML", "kat": "Swiss Vitale", "einheit": "Stk", "preis": 15.0, "min": 5, "mhdWarn": 90, "lief": "Swiss PharmaCan AG"}];
 
 function lDB(){try{const d=JSON.parse(localStorage.getItem(K.DB)||'{}');db.we=d.we||[];db.wa=d.wa||[];db.konf=d.konf||[];db.art=d.art&&d.art.length?d.art:DA;}catch(e){db={we:[],wa:[],konf:[],art:DA};}}
 function sDB(){localStorage.setItem(K.DB,JSON.stringify(db));}
@@ -467,7 +481,7 @@ function showS(id){
   document.getElementById('sc-'+id).classList.add('on');
   document.getElementById('nb-'+id).classList.add('on');
   if(id==='dash')rDash();if(id==='best')rBest();
-  if(id==='mehr'){rBew();rInv();rBB();}if(id==='konf')rKL();
+  if(id==='mehr'){rBew();rInv();rBB();}if(id==='konf')rKL(); if(id==='art'){rArtList();}
 }
 
 function rDash(){
@@ -849,6 +863,118 @@ function cM(id){document.getElementById(id).classList.remove('on');}
 function cM2(id){document.getElementById(id).classList.add('on');}
 function tMenu(){document.getElementById('umenu').classList.toggle('on');}
 document.addEventListener('click',()=>document.getElementById('umenu').classList.remove('on'));
+
+// ===== ARTIKEL MANAGEMENT =====
+let editArtId = null;
+
+function rArtList() {
+  const q = (document.getElementById('art-s').value || '').toLowerCase();
+  const el = document.getElementById('art-list');
+  const cnt = document.getElementById('art-cnt');
+  const art = q ? db.art.filter(a => a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q) || (a.kat||'').toLowerCase().includes(q)) : db.art;
+  cnt.textContent = art.length + ' von ' + db.art.length + ' Artikeln';
+  const cats = {};
+  art.forEach(a => { if(!cats[a.kat]) cats[a.kat]=[]; cats[a.kat].push(a); });
+  el.innerHTML = Object.entries(cats).sort((x,y)=>x[0]<y[0]?-1:1).map(([cat, items]) =>
+    '<div class="sec">' + cat + ' (' + items.length + ')</div>' +
+    items.sort((x,y)=>x.name<y.name?-1:1).map(a => {
+      const bv = getB(a.id);
+      const warn = bv < a.min;
+      return '<div class="arow" data-aid="' + a.id + '" style="' + (warn?'border-color:var(--wa);background:var(--wab)':'') + '">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tx)">' + a.name + '</div>' +
+          '<div style="font-size:10px;color:var(--mu);font-family:var(--mo);margin-top:2px">' + a.id + ' · ' + a.einheit + (a.lief?' · '+a.lief:'') + '</div>' +
+        '</div>' +
+        '<div style="text-align:right;flex-shrink:0;margin-left:10px">' +
+          '<div style="font-size:16px;font-weight:700;color:' + (bv<=0?'var(--mu)':warn?'var(--wa)':'var(--ac)') + '">' + bv + '</div>' +
+          '<div style="font-size:9px;color:var(--mu)">Min: ' + a.min + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('')
+  ).join('');
+  el.querySelectorAll('.arow[data-aid]').forEach(row => {
+    row.addEventListener('click', () => oArtEdit(row.dataset.aid));
+  });
+}
+function oArtNew() {
+  editArtId = null;
+  document.getElementById('art-mt').textContent = '+ Neuer Artikel';
+  document.getElementById('art-del-btn').style.display = 'none';
+  ['art-id','art-nm','art-lf'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('art-kt').value = 'Swiss Vitale';
+  document.getElementById('art-eu').value = 'Stk';
+  document.getElementById('art-mn').value = '5';
+  document.getElementById('art-pr').value = '0';
+  document.getElementById('art-mw').value = '90';
+  document.getElementById('art-err').textContent = '';
+  document.getElementById('art-id').readOnly = false;
+  cM2('m-art');
+}
+
+function oArtEdit(id) {
+  const a = db.art.find(x => x.id === id);
+  if(!a) return;
+  editArtId = id;
+  document.getElementById('art-mt').textContent = 'Artikel bearbeiten';
+  document.getElementById('art-del-btn').style.display = 'flex';
+  document.getElementById('art-id').value = a.id;
+  document.getElementById('art-id').readOnly = true;
+  document.getElementById('art-nm').value = a.name;
+  document.getElementById('art-kt').value = a.kat || 'Swiss Vitale';
+  document.getElementById('art-eu').value = a.einheit || 'Stk';
+  document.getElementById('art-mn').value = a.min || 0;
+  document.getElementById('art-pr').value = a.preis || 0;
+  document.getElementById('art-mw').value = a.mhdWarn || 90;
+  document.getElementById('art-lf').value = a.lief || '';
+  document.getElementById('art-err').textContent = '';
+  cM2('m-art');
+}
+
+function saveArt() {
+  const id = document.getElementById('art-id').value.trim().toUpperCase();
+  const name = document.getElementById('art-nm').value.trim().toUpperCase();
+  const err = document.getElementById('art-err');
+  if(!id || !name) { err.textContent = 'ID und Bezeichnung erforderlich'; return; }
+  
+  if(!editArtId && db.art.find(a => a.id === id)) {
+    err.textContent = 'Artikel-Nr. bereits vorhanden'; return;
+  }
+  
+  const art = {
+    id,
+    name,
+    kat: document.getElementById('art-kt').value,
+    einheit: document.getElementById('art-eu').value,
+    min: Number(document.getElementById('art-mn').value) || 0,
+    preis: parseFloat(document.getElementById('art-pr').value) || 0,
+    mhdWarn: Number(document.getElementById('art-mw').value) || 90,
+    lief: document.getElementById('art-lf').value.trim(),
+  };
+  
+  if(editArtId) {
+    const idx = db.art.findIndex(a => a.id === editArtId);
+    if(idx >= 0) db.art[idx] = art;
+  } else {
+    db.art.push(art);
+  }
+  sDB();
+  cM('m-art');
+  rArtList();
+  toast('✅ Artikel gespeichert', 'ok');
+}
+
+function delArt() {
+  if(!editArtId) return;
+  const a = db.art.find(x => x.id === editArtId);
+  const b = getB(editArtId);
+  if(b > 0) { document.getElementById('art-err').textContent = 'Artikel hat noch Bestand ('+b+') – nicht löschbar'; return; }
+  if(!confirm('Artikel "' + (a?a.name:editArtId) + '" wirklich löschen?')) return;
+  db.art = db.art.filter(a => a.id !== editArtId);
+  sDB();
+  cM('m-art');
+  rArtList();
+  toast('Artikel gelöscht');
+}
 
 (function(){
   document.getElementById('app').style.display='none';
