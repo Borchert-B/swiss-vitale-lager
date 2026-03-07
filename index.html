@@ -336,6 +336,15 @@ html,body{height:100%;background:var(--bg);font-family:var(--ff);color:var(--tx)
           <button class="btn bp" onclick="exExcel()">&#x1F4CA; Excel-Export (7 Tabs)</button>
         </div>
       </div>
+
+      <div class="sec">Bexio Integration</div>
+      <div class="card">
+        <div class="ct">&#x1F4CB; Lieferscheine importieren</div>
+        <p style="font-size:12px;color:var(--tx2);margin-bottom:11px;line-height:1.55">
+          Lieferscheine direkt aus Bexio laden und als Wareneingang oder Warenausgang verbuchen.
+        </p>
+        <button class="btn bp" onclick="oBexio()">&#x1F4CB; Bexio &#xF6;ffnen</button>
+      </div>
       <div class="sec">Cloud</div>
       <div class="card">
         <div class="ct">&#x2601;&#xFE0F; Supabase Sync</div>
@@ -439,6 +448,73 @@ html,body{height:100%;background:var(--bg);font-family:var(--ff);color:var(--tx)
   <div class="fg"><label class="fl">Lieferant</label><input class="fi" id="art-lf" placeholder="Lieferantenname"></div>
   <button class="btn bp" onclick="saveArt()" style="margin-top:4px">&#x1F4BE; Speichern</button>
   <div class="lerr" id="art-err"></div>
+</div></div>
+
+
+<div class="mb" id="m-bexio" onclick="cM('m-bexio')"><div class="mof" onclick="event.stopPropagation()">
+  <div class="mh"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+    <div class="mt" style="margin:0">&#x1F4CB; Bexio Lieferscheine</div>
+    <div class="dot" id="bx-dot" style="width:9px;height:9px"></div>
+  </div>
+
+  <!-- Token config -->
+  <div id="bx-cfg">
+    <p style="font-size:12px;color:var(--tx2);margin-bottom:10px;line-height:1.5">
+      Personal Access Token aus Bexio eingeben.<br>
+      <span style="color:var(--mu)">Bexio &#x2192; Einstellungen &#x2192; API &#x2192; Personal Access Tokens</span>
+    </p>
+    <div class="fg">
+      <label class="fl">Bexio PAT Token</label>
+      <div class="pw">
+        <input class="fi" id="bx-tok" type="password" placeholder="eyJ&#x2026;" style="font-family:var(--mo);font-size:11px">
+        <button class="pt" onclick="tpw('bx-tok',this)">&#x1F441;</button>
+      </div>
+    </div>
+    <button class="btn bp" onclick="bxConnect()">&#x1F517; Verbinden &amp; Lieferscheine laden</button>
+    <div class="lerr" id="bx-err"></div>
+  </div>
+
+  <!-- Results -->
+  <div id="bx-res" style="display:none">
+    <div style="display:flex;gap:7px;margin-bottom:11px">
+      <button class="btn bp bs" style="flex:1" onclick="bxLoad()">&#x1F504; Neu laden</button>
+      <button class="btn bo bs" onclick="bxCfgShow()">&#x2699;&#xFE0F; Token</button>
+    </div>
+    <div class="sw" style="margin-bottom:8px">
+      <span class="si">&#x1F50D;</span>
+      <input class="fi" id="bx-s" placeholder="Suchen&#x2026;" oninput="bxFilter()">
+    </div>
+    <div id="bx-list"></div>
+  </div>
+</div></div>
+
+<!-- Bexio Detail Modal -->
+<div class="mb" id="m-bxd" onclick="cM('m-bxd')"><div class="mof" onclick="event.stopPropagation()">
+  <div class="mh"></div>
+  <div class="mt" id="bxd-t">Lieferschein</div>
+  <div id="bxd-info" style="background:var(--surf);border:1.5px solid var(--bdr);border-radius:var(--rs);padding:11px;margin-bottom:13px;font-size:12px;color:var(--tx2);line-height:1.7"></div>
+  <div class="sec" style="margin-top:0">Positionen</div>
+  <div id="bxd-pos"></div>
+  <div class="divl"></div>
+  <div class="fg">
+    <label class="fl">Als verbuchen</label>
+    <select class="fi fsel" id="bxd-typ">
+      <option value="WA">&#x1F4E4; Warenausgang (Lieferung an Kunde)</option>
+      <option value="WE">&#x1F4E5; Wareneingang (R&#xFC;cklieferung / Eingang)</option>
+    </select>
+  </div>
+  <div class="fg">
+    <label class="fl">QS-Status (nur bei WE)</label>
+    <select class="fi fsel" id="bxd-qs">
+      <option value="Freigegeben">&#x2705; Freigegeben</option>
+      <option value="Quarant&#xE4;ne">&#x1F7E1; Quarant&#xE4;ne</option>
+      <option value="Gesperrt">&#x1F534; Gesperrt</option>
+    </select>
+  </div>
+  <div id="bxd-warn" style="display:none;background:var(--wab);border:1.5px solid #6b4e00;border-radius:var(--rs);padding:10px;margin-bottom:10px;font-size:12px;color:var(--wa)"></div>
+  <button class="btn bp" onclick="bxBuchen()">&#x2705; Jetzt verbuchen</button>
+  <div class="lerr" id="bxd-err"></div>
 </div></div>
 
 <div id="sv"><video id="svid" autoplay playsinline muted></video><div class="so"><div class="sf"></div></div><button class="sx" onclick="stopScan()">&#x2715;</button><div style="position:absolute;bottom:90px;color:rgba(255,255,255,.85);font-size:13px">Barcode in den Rahmen halten</div></div>
@@ -974,6 +1050,228 @@ function delArt() {
   cM('m-art');
   rArtList();
   toast('Artikel gelöscht');
+}
+
+// ===== BEXIO INTEGRATION =====
+const BX_BASE = 'https://api.bexio.com/2.0';
+let bxDeliveries = [], bxCurrent = null, bxPositions = [];
+
+function gBxTok() { return localStorage.getItem('sv4_bx_tok') || ''; }
+function sBxTok(t) { localStorage.setItem('sv4_bx_tok', t); }
+
+function oBexio() {
+  cM2('m-bexio');
+  const tok = gBxTok();
+  if(tok) {
+    document.getElementById('bx-tok').value = tok;
+    document.getElementById('bx-cfg').style.display = 'none';
+    document.getElementById('bx-res').style.display = 'block';
+    bxLoad();
+  } else {
+    document.getElementById('bx-cfg').style.display = 'block';
+    document.getElementById('bx-res').style.display = 'none';
+  }
+}
+
+function bxCfgShow() {
+  document.getElementById('bx-cfg').style.display = 'block';
+  document.getElementById('bx-res').style.display = 'none';
+}
+
+async function bxFetch(path) {
+  const tok = gBxTok();
+  const r = await fetch(BX_BASE + path, {
+    headers: { 'Authorization': 'Bearer ' + tok, 'Accept': 'application/json' }
+  });
+  if(!r.ok) throw new Error('HTTP ' + r.status + ': ' + await r.text());
+  return r.json();
+}
+
+async function bxConnect() {
+  const tok = document.getElementById('bx-tok').value.trim();
+  const err = document.getElementById('bx-err');
+  if(!tok) { err.textContent = 'Token eingeben'; return; }
+  err.textContent = 'Verbinde\u2026';
+  try {
+    sBxTok(tok);
+    await bxFetch('/kb_delivery?limit=1');
+    err.style.color = 'var(--ok)';
+    err.textContent = '\u2705 Verbunden!';
+    setTimeout(() => {
+      document.getElementById('bx-cfg').style.display = 'none';
+      document.getElementById('bx-res').style.display = 'block';
+      bxLoad();
+    }, 700);
+  } catch(e) {
+    err.style.color = 'var(--er)';
+    err.textContent = '\u274C ' + e.message;
+  }
+}
+
+async function bxLoad() {
+  const el = document.getElementById('bx-list');
+  const dot = document.getElementById('bx-dot');
+  dot.className = 'dot sy';
+  el.innerHTML = '<div style="color:var(--mu);font-size:13px;text-align:center;padding:20px">\u23F3 Lade Lieferscheine\u2026</div>';
+  try {
+    // Load last 50 delivery notes, newest first
+    const data = await bxFetch('/kb_delivery?order_by=id_desc&limit=50&offset=0');
+    bxDeliveries = Array.isArray(data) ? data : (data.data || []);
+    dot.className = 'dot ok';
+    bxRender(bxDeliveries);
+  } catch(e) {
+    dot.className = 'dot er';
+    el.innerHTML = '<div style="color:var(--er);font-size:13px;padding:10px">\u274C ' + e.message + '</div>';
+  }
+}
+
+function bxFilter() {
+  const q = (document.getElementById('bx-s').value || '').toLowerCase();
+  const f = q ? bxDeliveries.filter(d =>
+    (d.document_nr||'').toLowerCase().includes(q) ||
+    (d.title||'').toLowerCase().includes(q) ||
+    (d.contact_address||'').toLowerCase().includes(q) ||
+    (String(d.id)).includes(q)
+  ) : bxDeliveries;
+  bxRender(f);
+}
+
+function bxStatusBadge(s) {
+  const map = {7:'Entwurf',8:'Offen',9:'Erledigt',16:'Storniert',17:'Partial'};
+  const col = {7:'bbn',8:'bbw',9:'bbg',16:'bbd',17:'bba'};
+  const label = map[s] || ('Status '+s);
+  const cls = col[s] || 'bbn';
+  return '<span class="badge ' + cls + '">' + label + '</span>';
+}
+
+function bxRender(list) {
+  const el = document.getElementById('bx-list');
+  if(!list.length) { el.innerHTML = '<div class="empty">Keine Lieferscheine gefunden</div>'; return; }
+  el.innerHTML = list.map(d => {
+    // Check if already booked
+    const nr = d.document_nr || ('#'+d.id);
+    const alreadyBooked = db.wa.some(e => e.ls === nr) || db.we.some(e => e.ls === nr);
+    return '<div class="bew" style="cursor:pointer;' + (alreadyBooked?'opacity:.5':'') + '" data-bxid="' + d.id + '">' +
+      '<div class="bt bko">\uD83D\uDCCB</div>' +
+      '<div class="bi">' +
+        '<div class="bn">' + (d.document_nr || 'LS #'+d.id) + (d.title?' \u00b7 '+d.title:'') + '</div>' +
+        '<div class="bm">' + (d.contact_address||'').split('\n')[0] + ' \u00b7 ' + (d.updated_at||d.created_at||'').slice(0,10) + '</div>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">' +
+        bxStatusBadge(d.kb_item_status_id) +
+        (alreadyBooked ? '<span style="font-size:9px;color:var(--ok)">\u2705 gebucht</span>' : '') +
+      '</div>' +
+    '</div>';
+  }).join('');
+  el.querySelectorAll('.bew[data-bxid]').forEach(row => {
+    row.addEventListener('click', () => bxOpenDetail(parseInt(row.dataset.bxid)));
+  });
+}
+
+async function bxOpenDetail(id) {
+  const d = bxDeliveries.find(x => x.id === id);
+  if(!d) return;
+  bxCurrent = d;
+  bxPositions = [];
+
+  document.getElementById('bxd-t').textContent = 'LS ' + (d.document_nr||'#'+d.id);
+  document.getElementById('bxd-info').innerHTML =
+    '<b>Kunde:</b> ' + (d.contact_address||'').split('\n')[0] + '<br>' +
+    '<b>Datum:</b> ' + (d.updated_at||d.created_at||'').slice(0,10) + '<br>' +
+    '<b>Titel:</b> ' + (d.title||'\u2014') + '<br>' +
+    '<b>Status:</b> ' + bxStatusBadge(d.kb_item_status_id);
+  document.getElementById('bxd-pos').innerHTML = '<div style="color:var(--mu);font-size:12px">\u23F3 Lade Positionen\u2026</div>';
+  document.getElementById('bxd-err').textContent = '';
+  document.getElementById('bxd-warn').style.display = 'none';
+  cM2('m-bxd');
+
+  try {
+    const pos = await bxFetch('/kb_delivery/' + id + '/kb_position');
+    bxPositions = (Array.isArray(pos) ? pos : (pos.data||[])).filter(p => p.article_id || (p.text && p.amount > 0));
+    bxRenderPos();
+  } catch(e) {
+    document.getElementById('bxd-pos').innerHTML = '<div style="color:var(--er);font-size:12px">\u274C ' + e.message + '</div>';
+  }
+}
+
+function bxRenderPos() {
+  const el = document.getElementById('bxd-pos');
+  const warn = document.getElementById('bxd-warn');
+  if(!bxPositions.length) { el.innerHTML = '<div style="color:var(--mu);font-size:12px">Keine Artikel-Positionen</div>'; return; }
+
+  let mismatches = [];
+  el.innerHTML = bxPositions.map(p => {
+    const qty = parseFloat(p.amount) || 0;
+    // Try to match by article_id or text
+    const artId = p.article_id ? String(p.article_id) : '';
+    const matched = db.art.find(a => a.id === artId || a.name === (p.text||'').toUpperCase().trim());
+    if(!matched && qty > 0) mismatches.push(p.text || artId);
+    return '<div class="ir">' +
+      '<div class="in" style="font-size:11px">' +
+        '<div style="font-weight:600;color:' + (matched?'var(--tx)':'var(--wa)') + '">' + (p.text||artId) + '</div>' +
+        '<div style="color:var(--mu);font-size:10px;margin-top:1px">' + (matched ? '\u2705 '+matched.id : '\u26A0\uFE0F Kein Match') + '</div>' +
+      '</div>' +
+      '<div style="font-size:14px;font-weight:700;color:var(--ac);flex-shrink:0">' + qty + ' ' + (p.unit_name||'Stk') + '</div>' +
+    '</div>';
+  }).join('');
+
+  if(mismatches.length) {
+    warn.style.display = 'block';
+    warn.innerHTML = '\u26A0\uFE0F ' + mismatches.length + ' Position(en) ohne Artikel-Match:<br>' +
+      mismatches.map(m => '<span style="font-family:var(--mo);font-size:10px">' + m + '</span>').join(', ');
+  }
+}
+
+async function bxBuchen() {
+  const typ = document.getElementById('bxd-typ').value;
+  const qs = document.getElementById('bxd-qs').value;
+  const err = document.getElementById('bxd-err');
+  const d = bxCurrent;
+  const ls = d.document_nr || ('BX-'+d.id);
+  const dat = (d.updated_at||d.created_at||'').slice(0,10) || td();
+  const kunde = (d.contact_address||'').split('\n')[0];
+
+  let booked = 0, skipped = 0;
+  for(const p of bxPositions) {
+    const qty = parseFloat(p.amount) || 0;
+    if(qty <= 0) continue;
+    const artId = p.article_id ? String(p.article_id) : '';
+    const matched = db.art.find(a => a.id === artId || a.name === (p.text||'').toUpperCase().trim());
+    if(!matched) { skipped++; continue; }
+
+    if(typ === 'WA') {
+      // Check stock
+      const ch = getCH(matched.id);
+      if(!ch.length) { skipped++; continue; }
+      const e = {
+        id: uid(), typ: 'WA', dat, aid: matched.id,
+        c: ch[0][0], m: qty,
+        empf: kunde, ls, vz: 'Verkauf', durch: cu ? cu.name : 'Bexio', auNr: ''
+      };
+      db.wa.push(e);
+      push2Cloud('wa', e);
+    } else {
+      const e = {
+        id: uid(), typ: 'WE', dat, aid: matched.id,
+        lc: '', c: ls + '-' + matched.id.slice(-4),
+        mhd: '', m: qty, ls, qs, durch: cu ? cu.name : 'Bexio'
+      };
+      db.we.push(e);
+      push2Cloud('we', e);
+    }
+    booked++;
+  }
+  sDB();
+
+  if(booked > 0) {
+    err.style.color = 'var(--ok)';
+    err.textContent = '\u2705 ' + booked + ' Positionen verbucht' + (skipped ? ', ' + skipped + ' übersprungen (kein Match)' : '');
+    toast('\u2705 ' + booked + ' Bexio-Positionen gebucht', 'ok');
+    setTimeout(() => { cM('m-bxd'); bxFilter(); }, 1400);
+  } else {
+    err.style.color = 'var(--er)';
+    err.textContent = '\u274C Keine Positionen verbucht (' + skipped + ' ohne Artikel-Match)';
+  }
 }
 
 (function(){
